@@ -1,2 +1,1 @@
-# TextBasedAdventure
 # qp-trash-can
