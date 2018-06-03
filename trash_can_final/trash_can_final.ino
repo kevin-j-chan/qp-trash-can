@@ -36,11 +36,10 @@
 
 /* Comment this out to disable prints and save space */
 #define BLYNK_PRINT Serial
-
+#include "Ultrasonic.h"
 
 #include <ESP8266_Lib.h>
 #include <BlynkSimpleShieldEsp8266.h>
-#include "Ultrasonic.h"
 
 // You should get Auth Token in the Blynk App.
 // Go to the Project Settings (nut icon).
@@ -48,14 +47,14 @@ char auth[] = "ae7bc78c4f3a40a6a2ea43232c795535";
 
 // Your WiFi credentials.
 // Set password to "" for open networks.
-char ssid[] = "ROUTER211";
+char ssid[] = "KeVIN";
 char pass[] = "kevinchan";
 
-String AP = "ROUTER211";
+String AP = "KeVIN";
 String PASS = "kevinchan";
 
 // Hardware Serial on Mega, Leonardo, Micro...
-//#define EspSerial Serial
+//#define EspSerial Serial1
 
 // or Software Serial on Uno, Nano...
 #include <SoftwareSerial.h>
@@ -63,54 +62,38 @@ SoftwareSerial EspSerial(10, 11); // RX, TX
 
 // Your ESP8266 baud rate:
 #define ESP8266_BAUD 115200
-//#define ESP8266_BAUD 9600
-
 
 ESP8266 wifi(&EspSerial);
 
+
+// ULTRASONIC RANGER
 Ultrasonic ultrasonic(7);
 
-int runRanger();
+int runRanger(){
+  long RangeInInches;
+  long RangeInCentimeters;
+  RangeInInches = ultrasonic.MeasureInInches();
+  RangeInCentimeters = RangeInInches * 2.54;/*ultrasonic.MeasureInCentimeters();*/
+  Serial.println("The distance to obstacles in front is: ");
+  Serial.print(RangeInInches);//0~157 inches
+  Serial.println(" inch");
+  Serial.print(RangeInCentimeters);//0~400cm
+  Serial.println(" cm");
+  return RangeInInches;
+}
+
+// TIMERS
+BlynkTimer timer;
+
+void sendUpRange(){
+  Blynk.virtualWrite(V4, runRanger());
+}
+
+// SEND COMMAND 
 int countTrueCommand;
 int countTimeCommand; 
 boolean found = false; 
 int valSensor = 1;
-
-BlynkTimer timer; // Create a Timer object
-
-//BLYNK_READ(V4){
-//  Blynk.virtualWrite(V4, runRanger());
-  
-//}
-
-void setup()
-{
-  // Debug console
-  Serial.begin(9600);
-
-  // Set ESP8266 baud rate
-  EspSerial.begin(ESP8266_BAUD);
-  delay(10);
-  sendCommand("AT",5,"OK");
-  sendCommand("AT+CWMODE=1",5,"OK");
-  sendCommand("AT+CWJAP=\""+ AP +"\",\""+ PASS +"\"",20,"OK");
-  Blynk.begin(auth, wifi, ssid, pass);
-  // You can also specify server:
-  //Blynk.begin(auth, wifi, ssid, pass, "blynk-cloud.com", 8442);
-  //Blynk.begin(auth, wifi, ssid, pass, IPAddress(192,168,1,100), 8442);
-
-  //timer.setInterval(1000L, runRanger);
-}
-
-void loop()
-{
-  
-  Blynk.run();
-  // You can inject your own code or combine it with other sketches.
-  // Check other examples on how to communicate with Blynk. Remember
-  // to avoid delay() function!
-  //timer.run();
-}
 
 void sendCommand(String command, int maxTime, char readReplay[]) {
   Serial.print(countTrueCommand);
@@ -146,18 +129,32 @@ void sendCommand(String command, int maxTime, char readReplay[]) {
   found = false;
 }
 
- 
-int runRanger(){
-  long RangeInInches;
-  long RangeInCentimeters;
-  RangeInInches = ultrasonic.MeasureInInches();
-  RangeInCentimeters = RangeInInches * 2.54;/*ultrasonic.MeasureInCentimeters();*/
-  Serial.println("The distance to obstacles in front is: ");
-  Serial.print(RangeInInches);//0~157 inches
-  Serial.println(" inch");
-  Serial.print(RangeInCentimeters);//0~400cm
-  Serial.println(" cm");
-  //Blynk.virtualWrite(V4, RangeInInches);
-  return RangeInInches;
+void setup()
+{
+  // Debug console
+  Serial.begin(9600);
+
+  // Set ESP8266 baud rate
+  EspSerial.begin(ESP8266_BAUD);
+  delay(10);
+
+  //sendCommand("AT+CWMODE=1",5,"OK");
+  //sendCommand("AT+CWJAP=\""+ AP +"\",\""+ PASS +"\"",20,"OK");
+
+  Serial.println("Starting Blynk.begin()");
+  Blynk.begin(auth, wifi, ssid, pass);
+  Serial.println("Finished Blynk.begin()");
+  Blynk.virtualWrite(V5, "Finished!");
+  Blynk.virtualWrite(V4, runRanger());
+  //sendUpRange();  
+  delay(2000);
+  Blynk.virtualWrite(V5, "-------");
+  timer.setInterval(1000L, sendUpRange);
+}
+
+void loop()
+{
+  Blynk.run();
+  timer.run();
 }
 
